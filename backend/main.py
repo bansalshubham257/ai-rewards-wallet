@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from .models import Base, User, Wallet, Transaction
@@ -36,6 +37,15 @@ def init_db():
 init_db()
 
 app = FastAPI()
+
+# Add CORS middleware to allow requests from the browser extension
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class LoginSchema(BaseModel):
     email: str
