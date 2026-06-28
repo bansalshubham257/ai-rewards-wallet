@@ -4,8 +4,18 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from .models import Base, User, Wallet, Transaction
 from pydantic import BaseModel
+from passlib.context import CryptContext
 import os
 import shutil
+
+# Password hashing setup
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
 
 # Railway DB Connection String
 DATABASE_URL = "postgresql://postgres:LZjgyzthYpacmWhOSAnDMnMWxkntEEqe@switchback.proxy.rlwy.net:22297/railway"
@@ -29,7 +39,7 @@ app = FastAPI()
 
 class LoginSchema(BaseModel):
     email: str
-    upi: str
+    password: str
 
 def get_db():
     db = SessionLocal()
@@ -42,13 +52,20 @@ def get_db():
 async def login(data: LoginSchema, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email).first()
     if not user:
-        user = User(email=data.email, upi_id=data.upi)
+        # Sign up new user
+        hashed_password = get_password_hash(data.password)
+        user = User(email=data.email, password_hash=hashed_password)
         db.add(user)
         db.commit()
-        # Create corresponding wallet in the new schema
+        # Create corresponding wallet
         wallet = Wallet(email=data.email, current_balance=0.0)
         db.add(wallet)
         db.commit()
+    else:
+        # Verify password for existing user
+        if not verify_password(data.password, user.password_hash):
+            raise HTTPException(status_code=400, detail="Incorrect password")
+            
     return {"status": "success", "email": user.email}
 
 @app.post("/analyze/intent")
@@ -97,6 +114,15 @@ async def analyze_intent(data: dict, db: Session = Depends(get_db)):
 async def get_balance(email: str, db: Session = Depends(get_db)):
     wallet = db.query(Wallet).filter(Wallet.email == email).first()
     return {"balance": wallet.current_balance if wallet else 0}
+
+@app.post("/user/update-upi")
+async def update_upi(email: str, upi: str, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.upi_id = upi
+    db.commit()
+    return {"status": "success", "message": "UPI ID updated successfully"}
 
 if __name__ == "__main__":
     import uvicorn

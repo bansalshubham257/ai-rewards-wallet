@@ -11,7 +11,8 @@ class User(Base):
     __tablename__ = "users"
     __table_args__ = {"schema": SCHEMA_NAME}
     email = Column(String, primary_key=True, index=True)
-    upi_id = Column(String)
+    password_hash = Column(String)
+    upi_id = Column(String, nullable=True)
     country = Column(String, default="US")
     referred_by = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
