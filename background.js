@@ -1,4 +1,4 @@
-const API_BASE = "https://your-render-api-url.onrender.com";
+const API_BASE = "https://ai-rewards-wallet-production.up.railway.app";
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "PROMPT_CAPTURED") {

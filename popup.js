@@ -1,4 +1,4 @@
-const API_BASE = "https://your-render-api-url.onrender.com";
+const API_BASE = "https://ai-rewards-wallet-production.up.railway.app";
 
 document.getElementById('login-btn').addEventListener('click', async () => {
     const email = document.getElementById('email').value;
