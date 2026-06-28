@@ -1,4 +1,4 @@
-const COMMERCIAL_KEYWORDS = ['best', 'buy', 'price', 'recommend', 'hosting', 'vpn', 'crm', 'saas', 'laptop', 'insurance', 'course', 'credit card', 'software'];
+const COMMERCIAL_KEYWORDS = ['best', 'buy', 'price', 'recommend', 'hosting', 'vpn', 'crm', 'saas', 'laptop', 'insurance', 'course', 'credit card', 'software', 'cheap', 'top', 'deal', 'discount'];
 
 function isCommercial(text) {
     const lowerText = text.toLowerCase();
@@ -10,23 +10,24 @@ function capturePrompt() {
         '#prompt-textarea', 
         'div[contenteditable="true"]', 
         'textarea', 
-        'div[role="textbox"]'
+        'div[role="textbox"]',
+        '[data-testid="prompt-textarea"]'
     ];
 
     let promptText = "";
     for (let selector of selectors) {
         const el = document.querySelector(selector);
         if (el) {
-            promptText = el.innerText || el.value || el.textContent;
+            promptText = el.textContent || el.value || el.innerText;
             break;
         }
     }
 
-    if (promptText && isCommercial(promptText)) {
+    if (promptText && promptText.trim().length > 0 && isCommercial(promptText)) {
         chrome.runtime.sendMessage({
             type: "PROMPT_CAPTURED",
             data: {
-                prompt: promptText,
+                prompt: promptText.trim(),
                 url: window.location.hostname
             }
         });

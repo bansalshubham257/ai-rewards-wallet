@@ -25,7 +25,7 @@ async function handlePrompt(data) {
         if (result.offer_id) {
             chrome.notifications.create({
                 type: 'basic',
-                iconUrl: 'icon.png',
+                iconUrl: 'https://cdn-icons-png.flaticon.com/512/2530/2530001.png',
                 title: '💰 Reward Opportunity!',
                 message: `We found a great offer for ${result.category}! Click to earn.`,
                 priority: 2
