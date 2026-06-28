@@ -2,17 +2,23 @@ const API_BASE = "https://ai-rewards-wallet-production.up.railway.app";
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log(`[Rewards Background] Message received:`, request);
+    
     if (request.type === "PROMPT_CAPTURED") {
-        handlePrompt(request.data);
+        handlePrompt(request.data).then(result => {
+            sendResponse({ status: "processed", result: result });
+        });
+        return true; // Keep channel open for async response
     }
+    sendResponse({ status: "ignored" });
 });
 
 async function handlePrompt(data) {
     const { user } = await chrome.storage.local.get("user");
-    console.log(`[Rewards Background] User state:`, user ? "Logged in" : "Not logged in");
+    console.log(`[Rewards Background] User state:`, user ? `Logged in as ${user.email}` : "Not logged in");
+    
     if (!user) {
         console.log(`[Rewards Background] Skipping API call: User not logged in`);
-        return;
+        return "no_user";
     }
 
     try {
@@ -26,6 +32,13 @@ async function handlePrompt(data) {
                 site: data.url
             })
         });
+        
+        if (!response.ok) {
+            const errText = await response.text();
+            console.error(`[Rewards Background] API Error Response (${response.status}): ${errText}`);
+            return `api_error_${response.status}`;
+        }
+
         const result = await response.json();
         console.log(`[Rewards Background] API Result:`, result);
 
@@ -37,8 +50,13 @@ async function handlePrompt(data) {
                 message: `We found a great offer for ${result.category}! Click to earn.`,
                 priority: 2
             });
+            return "offer_found";
         }
+        
+        console.log(`[Rewards Background] No active offer found for category: ${result.category}`);
+        return "no_offer";
     } catch (e) {
-        console.error("[Rewards Background] API Error:", e);
+        console.error("[Rewards Background] Network/Fetch Error:", e);
+        return "network_error";
     }
 }

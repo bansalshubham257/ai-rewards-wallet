@@ -7,7 +7,7 @@ function isCommercial(text) {
     return found;
 }
 
-function capturePrompt() {
+async function capturePrompt() {
     const selectors = [
         '#prompt-textarea', 
         'div[contenteditable="true"]', 
@@ -25,15 +25,33 @@ function capturePrompt() {
         }
     }
 
-    console.log(`[Rewards] Captured prompt: "${promptText ? promptText.substring(0, 50) + '...' : 'empty'}"`);
+    if (!promptText || promptText.trim().length === 0) {
+        return;
+    }
 
-    if (promptText && promptText.trim().length > 0 && isCommercial(promptText)) {
+    const trimmedPrompt = promptText.trim();
+    console.log(`[Rewards] Captured prompt: "${trimmedPrompt.substring(0, 50)}..."`);
+
+    if (isCommercial(trimmedPrompt)) {
+        // Check if user is logged in before sending
+        const { user } = await chrome.storage.local.get("user");
+        if (!user) {
+            console.log(`[Rewards] Skipping: User not logged in. Please login via the extension popup.`);
+            return;
+        }
+
         console.log(`[Rewards] Sending commercial prompt to background script...`);
         chrome.runtime.sendMessage({
             type: "PROMPT_CAPTURED",
             data: {
-                prompt: promptText.trim(),
+                prompt: trimmedPrompt,
                 url: window.location.hostname
+            }
+        }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.error(`[Rewards] Error sending message: ${chrome.runtime.lastError.message}`);
+            } else {
+                console.log(`[Rewards] Background responded:`, response);
             }
         });
     }
