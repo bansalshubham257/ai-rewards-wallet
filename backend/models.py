@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, create_engine, text
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean, create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 import datetime
@@ -24,7 +24,7 @@ class Offer(Base):
     affiliate_name = Column(String) # e.g., 'PartnerStack', 'Impact'
     base_url = Column(String) # The link from the network
     commission_rate = Column(Float) # How much you earn per sale
-    is_active = Column(torch.bool, default=True)
+    is_active = Column(Boolean, default=True)
 
 class Wallet(Base):
     __tablename__ = "wallets"
