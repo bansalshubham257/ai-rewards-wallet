@@ -32,6 +32,15 @@ def init_db():
         # Create separate schema to avoid touching public/GST data
         conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA_NAME}"))
         conn.commit()
+        
+        # Manually add password_hash column if it doesn't exist (migration)
+        try:
+            conn.execute(text(f"ALTER TABLE {SCHEMA_NAME}.users ADD COLUMN password_hash VARCHAR"))
+            conn.commit()
+        except Exception:
+            # Column already exists, ignore
+            pass
+            
     Base.metadata.create_all(bind=engine)
 
 init_db()
