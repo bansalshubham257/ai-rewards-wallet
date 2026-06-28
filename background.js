@@ -7,10 +7,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         handlePrompt(request.data).then(result => {
             sendResponse({ status: "processed", result: result });
         });
-        return true; // Keep channel open for async response
+        return true; 
     }
     sendResponse({ status: "ignored" });
 });
+
+async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const response = await fetch(url, options);
+            return response;
+        } catch (e) {
+            if (i === retries - 1) throw e;
+            console.log(`[Rewards Background] Fetch failed, retrying in ${backoff}ms... (Attempt ${i + 1}/${retries})`);
+            await new Promise(resolve => setTimeout(resolve, backoff));
+        }
+    }
+}
 
 async function handlePrompt(data) {
     const { user } = await chrome.storage.local.get("user");
@@ -23,7 +36,7 @@ async function handlePrompt(data) {
 
     try {
         console.log(`[Rewards Background] Calling /analyze/intent for: ${data.prompt.substring(0, 30)}...`);
-        const response = await fetch(`${API_BASE}/analyze/intent`, {
+        const response = await fetchWithRetry(`${API_BASE}/analyze/intent`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -56,10 +69,9 @@ async function handlePrompt(data) {
         console.log(`[Rewards Background] No active offer found for category: ${result.category}`);
         return "no_offer";
     } catch (e) {
-        console.error("[Rewards Background] Network/Fetch Error details:", {
+        console.error("[Rewards Background] Final Network/Fetch Error details:", {
             message: e.message,
-            stack: e.stack,
-            error: e
+            stack: e.stack
         });
         return "network_error";
     }
