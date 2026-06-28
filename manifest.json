@@ -5,9 +5,13 @@
   "description": "Earn rewards for your AI research!",
   "permissions": ["storage", "notifications", "tabs"],
   "host_permissions": [
+    "https://*.chatgpt.com/*",
     "https://chatgpt.com/*",
+    "https://*.claude.ai/*",
     "https://claude.ai/*",
+    "https://*.gemini.google.com/*",
     "https://gemini.google.com/*",
+    "https://*.perplexity.ai/*",
     "https://perplexity.ai/*",
     "https://*.deepseek.com/*",
     "https://deepseek.com/*",
@@ -25,9 +29,13 @@
   "content_scripts": [
     {
       "matches": [
+        "https://*.chatgpt.com/*",
         "https://chatgpt.com/*",
+        "https://*.claude.ai/*",
         "https://claude.ai/*",
+        "https://*.gemini.google.com/*",
         "https://gemini.google.com/*",
+        "https://*.perplexity.ai/*",
         "https://perplexity.ai/*",
         "https://*.deepseek.com/*",
         "https://deepseek.com/*",
