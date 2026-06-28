@@ -56,7 +56,11 @@ async function handlePrompt(data) {
         console.log(`[Rewards Background] No active offer found for category: ${result.category}`);
         return "no_offer";
     } catch (e) {
-        console.error("[Rewards Background] Network/Fetch Error:", e);
+        console.error("[Rewards Background] Network/Fetch Error details:", {
+            message: e.message,
+            stack: e.stack,
+            error: e
+        });
         return "network_error";
     }
 }
