@@ -16,6 +16,16 @@ class User(Base):
     referred_by = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+class Offer(Base):
+    __tablename__ = "offers"
+    __table_args__ = {"schema": SCHEMA_NAME}
+    offer_id = Column(Integer, primary_key=True, autoincrement=True)
+    category = Column(String, index=True) # e.g., 'hosting', 'vpn'
+    affiliate_name = Column(String) # e.g., 'PartnerStack', 'Impact'
+    base_url = Column(String) # The link from the network
+    commission_rate = Column(Float) # How much you earn per sale
+    is_active = Column(torch.bool, default=True)
+
 class Wallet(Base):
     __tablename__ = "wallets"
     __table_args__ = {"schema": SCHEMA_NAME}

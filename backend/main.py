@@ -54,11 +54,12 @@ async def login(data: LoginSchema, db: Session = Depends(get_db)):
 @app.post("/analyze/intent")
 async def analyze_intent(data: dict, db: Session = Depends(get_db)):
     prompt = data.get("prompt", "").lower()
+    email = data.get("email", "")
     categories = {
-        "hosting": ["hosting", "domain", "server", "aws", "azure"],
-        "vpn": ["vpn", "privacy", "expressvpn", "nordvpn"],
-        "saas": ["crm", "software", "automation", "tool"],
-        "finance": ["credit card", "loan", "insurance", "bank"]
+        "hosting": ["hosting", "domain", "server", "aws", "azure", "bluehost", "hostinger"],
+        "vpn": ["vpn", "privacy", "expressvpn", "nordvpn", "surfshark"],
+        "saas": ["crm", "software", "automation", "tool", "salesforce", "hubspot"],
+        "finance": ["credit card", "loan", "insurance", "bank", "trading"]
     }
     
     found_cat = "general"
@@ -70,12 +71,23 @@ async def analyze_intent(data: dict, db: Session = Depends(get_db)):
     if found_cat == "general":
         return {"category": "none", "offer_id": None}
         
-    return {
-        "category": found_cat,
-        "commercial_score": 90,
-        "offer_id": f"OFFER_{found_cat.upper()}_001",
-        "recommendation": f"Check out the best {found_cat} tools!"
-    }
+    # Fetch the best active offer for this category from DB
+    offer = db.query(Offer).filter(Offer.category == found_cat, Offer.is_active == True).first()
+    
+    if offer:
+        # Append the user email as subid for tracking
+        # Example: https://link.com/?aff=123&subid=user@email.com
+        separator = "&" if "?" in offer.base_url else "?"
+        tracking_link = f"{offer.base_url}{separator}subid={email}"
+        
+        return {
+            "category": found_cat,
+            "offer_id": offer.offer_id,
+            "url": tracking_link,
+            "recommendation": f"Top rated {found_cat} offer for you!"
+        }
+    
+    return {"category": found_cat, "offer_id": None, "message": "No current offers for this category."}
 
 @app.get("/wallet/balance")
 async def get_balance(email: str, db: Session = Depends(get_db)):
