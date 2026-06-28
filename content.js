@@ -33,27 +33,39 @@ async function capturePrompt() {
     console.log(`[Rewards] Captured prompt: "${trimmedPrompt.substring(0, 50)}..."`);
 
     if (isCommercial(trimmedPrompt)) {
-        // Check if user is logged in before sending
-        const { user } = await chrome.storage.local.get("user");
-        if (!user) {
-            console.log(`[Rewards] Skipping: User not logged in. Please login via the extension popup.`);
-            return;
-        }
+        try {
+            // Check if user is logged in before sending
+            const { user } = await chrome.storage.local.get("user");
+            if (!user) {
+                console.log(`[Rewards] Skipping: User not logged in. Please login via the extension popup.`);
+                return;
+            }
 
-        console.log(`[Rewards] Sending commercial prompt to background script...`);
-        chrome.runtime.sendMessage({
-            type: "PROMPT_CAPTURED",
-            data: {
-                prompt: trimmedPrompt,
-                url: window.location.hostname
-            }
-        }, (response) => {
-            if (chrome.runtime.lastError) {
-                console.error(`[Rewards] Error sending message: ${chrome.runtime.lastError.message}`);
+            console.log(`[Rewards] Sending commercial prompt to background script...`);
+            chrome.runtime.sendMessage({
+                type: "PROMPT_CAPTURED",
+                data: {
+                    prompt: trimmedPrompt,
+                    url: window.location.hostname
+                }
+            }, (response) => {
+                if (chrome.runtime.lastError) {
+                    if (chrome.runtime.lastError.message.includes("context invalidated")) {
+                        console.warn(`[Rewards] Extension updated. Please refresh the page to continue earning rewards.`);
+                    } else {
+                        console.error(`[Rewards] Error sending message: ${chrome.runtime.lastError.message}`);
+                    }
+                } else {
+                    console.log(`[Rewards] Background responded:`, response);
+                }
+            });
+        } catch (e) {
+            if (e.message.includes("context invalidated")) {
+                console.warn(`[Rewards] Extension updated. Please refresh the page to continue earning rewards.`);
             } else {
-                console.log(`[Rewards] Background responded:`, response);
+                console.error(`[Rewards] Unexpected error:`, e);
             }
-        });
+        }
     }
 }
 
