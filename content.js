@@ -7,6 +7,73 @@ function isCommercial(text) {
     return found;
 }
 
+function showOfferBanner(offer) {
+    // Remove existing banner if any
+    const existingBanner = document.getElementById('ai-rewards-banner');
+    if (existingBanner) existingBanner.remove();
+
+    const banner = document.createElement('div');
+    banner.id = 'ai-rewards-banner';
+    banner.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(90deg, #ff9800, #f57c00);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 50px;
+        z-index: 999999;
+        font-family: sans-serif;
+        font-weight: bold;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: all 0.3s ease;
+        animation: slideDown 0.5s ease-out;
+    `;
+
+    banner.innerHTML = `
+        <span>💰</span>
+        <span>${offer.recommendation}</span>
+        <span style="background: white; color: #f57c00; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-left: 10px;">Claim Now</span>
+    `;
+
+    // Add animation style
+    const style = document.createElement('style');
+    style.innerHTML = `
+        @keyframes slideDown {
+            from { transform: translate(-50%, -100px); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
+    `;
+    document.head.appendChild(style);
+
+    banner.onclick = () => {
+        window.open(offer.url, '_blank');
+        banner.remove();
+    };
+
+    // Auto-remove after 10 seconds
+    setTimeout(() => {
+        if (banner.parentNode) {
+            banner.style.opacity = '0';
+            setTimeout(() => banner.remove(), 300);
+        }
+    }, 10000);
+
+    document.body.appendChild(banner);
+}
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.type === "SHOW_OFFER_BANNER") {
+        showOfferBanner(request.data);
+        sendResponse({ status: "banner_shown" });
+    }
+});
+
 async function capturePrompt() {
     try {
         const selectors = [
