@@ -6,7 +6,6 @@ from .models import Base, User, Wallet, Transaction
 from pydantic import BaseModel
 import os
 import shutil
-import torch
 
 # Railway DB Connection String
 DATABASE_URL = "postgresql://postgres:LZjgyzthYpacmWhOSAnDMnMWxkntEEqe@switchback.proxy.rlwy.net:22297/railway"
