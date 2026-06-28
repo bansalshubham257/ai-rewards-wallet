@@ -21,7 +21,11 @@ document.getElementById('login-btn').addEventListener('click', async () => {
 
 async function loadWallet() {
     const { user } = await chrome.storage.local.get("user");
-    if (!user) return;
+    
+    if (!user) {
+        document.getElementById('login-section').classList.remove('hidden');
+        return;
+    }
 
     const res = await fetch(`${API_BASE}/wallet/balance?email=${user.email}`);
     const data = await res.json();

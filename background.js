@@ -1,6 +1,7 @@
 const API_BASE = "https://ai-rewards-wallet-production.up.railway.app";
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    console.log(`[Rewards Background] Message received:`, request);
     if (request.type === "PROMPT_CAPTURED") {
         handlePrompt(request.data);
     }
@@ -8,9 +9,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 async function handlePrompt(data) {
     const { user } = await chrome.storage.local.get("user");
-    if (!user) return;
+    console.log(`[Rewards Background] User state:`, user ? "Logged in" : "Not logged in");
+    if (!user) {
+        console.log(`[Rewards Background] Skipping API call: User not logged in`);
+        return;
+    }
 
     try {
+        console.log(`[Rewards Background] Calling /analyze/intent for: ${data.prompt.substring(0, 30)}...`);
         const response = await fetch(`${API_BASE}/analyze/intent`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -21,6 +27,7 @@ async function handlePrompt(data) {
             })
         });
         const result = await response.json();
+        console.log(`[Rewards Background] API Result:`, result);
 
         if (result.offer_id) {
             chrome.notifications.create({
@@ -32,6 +39,6 @@ async function handlePrompt(data) {
             });
         }
     } catch (e) {
-        console.error("API Error:", e);
+        console.error("[Rewards Background] API Error:", e);
     }
 }

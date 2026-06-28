@@ -2,7 +2,9 @@ const COMMERCIAL_KEYWORDS = ['best', 'buy', 'price', 'recommend', 'hosting', 'vp
 
 function isCommercial(text) {
     const lowerText = text.toLowerCase();
-    return COMMERCIAL_KEYWORDS.some(keyword => lowerText.includes(keyword));
+    const found = COMMERCIAL_KEYWORDS.some(keyword => lowerText.includes(keyword));
+    console.log(`[Rewards] Checking text: "${text.substring(0, 50)}..." - Commercial: ${found}`);
+    return found;
 }
 
 function capturePrompt() {
@@ -23,7 +25,10 @@ function capturePrompt() {
         }
     }
 
+    console.log(`[Rewards] Captured prompt: "${promptText ? promptText.substring(0, 50) + '...' : 'empty'}"`);
+
     if (promptText && promptText.trim().length > 0 && isCommercial(promptText)) {
+        console.log(`[Rewards] Sending commercial prompt to background script...`);
         chrome.runtime.sendMessage({
             type: "PROMPT_CAPTURED",
             data: {
