@@ -9,6 +9,10 @@
     "https://claude.ai/*",
     "https://gemini.google.com/*",
     "https://perplexity.ai/*",
+    "https://*.deepseek.com/*",
+    "https://deepseek.com/*",
+    "https://*.use.ai/*",
+    "https://use.ai/*",
     "https://ai-rewards-wallet-production.up.railway.app/*",
     "https://*.onrender.com/*"
   ],
@@ -24,7 +28,11 @@
         "https://chatgpt.com/*",
         "https://claude.ai/*",
         "https://gemini.google.com/*",
-        "https://perplexity.ai/*"
+        "https://perplexity.ai/*",
+        "https://*.deepseek.com/*",
+        "https://deepseek.com/*",
+        "https://*.use.ai/*",
+        "https://use.ai/*"
       ],
       "js": ["content.js"]
     }
