@@ -9,6 +9,7 @@
     "https://claude.ai/*",
     "https://gemini.google.com/*",
     "https://perplexity.ai/*",
+    "https://ai-rewards-wallet-production.up.railway.app/*",
     "https://*.onrender.com/*"
   ],
   "action": {
