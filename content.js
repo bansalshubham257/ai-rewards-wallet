@@ -8,33 +8,32 @@ function isCommercial(text) {
 }
 
 async function capturePrompt() {
-    const selectors = [
-        '#prompt-textarea', 
-        'div[contenteditable="true"]', 
-        'textarea', 
-        'div[role="textbox"]',
-        '[data-testid="prompt-textarea"]'
-    ];
+    try {
+        const selectors = [
+            '#prompt-textarea', 
+            'div[contenteditable="true"]', 
+            'textarea', 
+            'div[role="textbox"]',
+            '[data-testid="prompt-textarea"]'
+        ];
 
-    let promptText = "";
-    for (let selector of selectors) {
-        const el = document.querySelector(selector);
-        if (el) {
-            promptText = el.textContent || el.value || el.innerText;
-            break;
+        let promptText = "";
+        for (let selector of selectors) {
+            const el = document.querySelector(selector);
+            if (el) {
+                promptText = el.textContent || el.value || el.innerText;
+                break;
+            }
         }
-    }
 
-    if (!promptText || promptText.trim().length === 0) {
-        return;
-    }
+        if (!promptText || promptText.trim().length === 0) {
+            return;
+        }
 
-    const trimmedPrompt = promptText.trim();
-    console.log(`[Rewards] Captured prompt: "${trimmedPrompt.substring(0, 50)}..."`);
+        const trimmedPrompt = promptText.trim();
+        console.log(`[Rewards] Captured prompt: "${trimmedPrompt.substring(0, 50)}..."`);
 
-    if (isCommercial(trimmedPrompt)) {
-        try {
-            // Check if user is logged in before sending
+        if (isCommercial(trimmedPrompt)) {
             const { user } = await chrome.storage.local.get("user");
             if (!user) {
                 console.log(`[Rewards] Skipping: User not logged in. Please login via the extension popup.`);
@@ -59,12 +58,12 @@ async function capturePrompt() {
                     console.log(`[Rewards] Background responded:`, response);
                 }
             });
-        } catch (e) {
-            if (e.message.includes("context invalidated")) {
-                console.warn(`[Rewards] Extension updated. Please refresh the page to continue earning rewards.`);
-            } else {
-                console.error(`[Rewards] Unexpected error:`, e);
-            }
+        }
+    } catch (e) {
+        if (e && e.message && e.message.includes("context invalidated")) {
+            console.warn(`[Rewards] Extension updated. Please refresh the page to continue earning rewards.`);
+        } else {
+            console.error(`[Rewards] Unexpected error in capturePrompt:`, e);
         }
     }
 }
