@@ -137,12 +137,15 @@ async function capturePrompt() {
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-        setTimeout(capturePrompt, 500);
+        // Capture immediately before the website clears the input
+        capturePrompt();
     }
 });
 
 document.addEventListener('click', (e) => {
-    if (e.target.closest('button')) {
-        setTimeout(capturePrompt, 500);
+    // Check if the clicked element is a button or looks like a send button
+    if (e.target.closest('button') || e.target.closest('[data-testid="send-button"]') || e.target.closest('button[type="submit"]')) {
+        // Capture immediately
+        capturePrompt();
     }
 });
