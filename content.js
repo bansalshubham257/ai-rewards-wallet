@@ -81,7 +81,9 @@ async function capturePrompt() {
             'div[contenteditable="true"]', 
             'textarea', 
             'div[role="textbox"]',
-            '[data-testid="prompt-textarea"]'
+            '[data-testid="prompt-textarea"]',
+            'textarea[placeholder*="Ask"]',
+            'textarea[placeholder*="Message"]'
         ];
 
         let promptText = "";
@@ -137,15 +139,12 @@ async function capturePrompt() {
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-        // Capture immediately before the website clears the input
         capturePrompt();
     }
 });
 
-document.addEventListener('click', (e) => {
-    // Check if the clicked element is a button or looks like a send button
-    if (e.target.closest('button') || e.target.closest('[data-testid="send-button"]') || e.target.closest('button[type="submit"]')) {
-        // Capture immediately
+document.addEventListener('mousedown', (e) => {
+    if (e.target.closest('button') || e.target.closest('[role="button"]') || e.target.closest('[data-testid="send-button"]') || e.target.closest('button[type="submit"]')) {
         capturePrompt();
     }
 });
