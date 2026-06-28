@@ -28,17 +28,16 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Initialize Schema and Tables safely
 def init_db():
-    with engine.connect() as conn:
-        # Create separate schema to avoid touching public/GST data
+    # Use engine.begin() to ensure transaction is committed
+    with engine.begin() as conn:
         conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA_NAME}"))
-        conn.commit()
         
-        # Manually add password_hash column if it doesn't exist (migration)
+        # Try to add the column. If the table doesn't exist yet, it will fail, 
+        # but create_all() will handle table creation with the correct schema.
         try:
             conn.execute(text(f"ALTER TABLE {SCHEMA_NAME}.users ADD COLUMN password_hash VARCHAR"))
-            conn.commit()
         except Exception:
-            # Column already exists, ignore
+            # Either column already exists or table doesn't exist yet
             pass
             
     Base.metadata.create_all(bind=engine)
