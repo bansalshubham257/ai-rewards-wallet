@@ -43,6 +43,26 @@ def init_db():
             
     Base.metadata.create_all(bind=engine)
 
+    # Seed sample offers if the table is empty
+    db = SessionLocal()
+    try:
+        if db.query(Offer).count() == 0:
+            sample_offers = [
+                Offer(category="hosting", affiliate_name="Bluehost", base_url="https://bluehost.com", commission_rate=65.0),
+                Offer(category="vpn", affiliate_name="NordVPN", base_url="https://nordvpn.com", commission_rate=40.0),
+                Offer(category="saas", affiliate_name="HubSpot", base_url="https://hubspot.com", commission_rate=50.0),
+                Offer(category="finance", affiliate_name="Amex", base_url="https://americanexpress.com", commission_rate=100.0),
+                Offer(category="electronics", affiliate_name="Amazon", base_url="https://amazon.com", commission_rate=5.0),
+                Offer(category="travel", affiliate_name="Booking", base_url="https://booking.com", commission_rate=10.0),
+                Offer(category="education", affiliate_name="Udemy", base_url="https://udemy.com", commission_rate=15.0),
+                Offer(category="health", affiliate_name="MyProtein", base_url="https://myprotein.com", commission_rate=20.0),
+            ]
+            db.add_all(sample_offers)
+            db.commit()
+            print("Successfully seeded sample offers.")
+    finally:
+        db.close()
+
 init_db()
 
 app = FastAPI()
