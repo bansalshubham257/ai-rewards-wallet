@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
-from models import Base, User, Wallet, Transaction
+from .models import Base, User, Wallet, Transaction
 from pydantic import BaseModel
 import os
 import shutil
