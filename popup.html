@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { width: 300px; font-family: sans-serif; background: #121212; color: white; padding: 15px; }
+        .card { background: #1e1e1e; padding: 15px; border-radius: 10px; text-align: center; border: 1px solid #333; }
+        .balance { font-size: 24px; font-weight: bold; color: #ff9800; }
+        input { width: 90%; padding: 8px; margin: 10px 0; border-radius: 5px; border: none; }
+        button { width: 100%; padding: 10px; background: #ff9800; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div id="login-section">
+        <h3>AI Rewards Wallet</h3>
+        <input type="email" id="email" placeholder="Enter Email">
+        <input type="text" id="upi" placeholder="Enter UPI ID">
+        <button id="login-btn">Join & Earn</button>
+    </div>
+    <div id="wallet-section" class="hidden">
+        <div class="card">
+            <p>Available Balance</p>
+            <div class="balance">₹ <span id="balance">0</span></div>
+        </div>
+        <p style="font-size: 12px; text-align: center; color: #aaa;">Min Withdrawal: ₹1000</p>
+        <button id="withdraw-btn">Request Withdrawal</button>
+        <button id="logout-btn" style="background: #333; margin-top: 10px;">Logout</button>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>
