@@ -56,10 +56,14 @@ async def analyze_intent(data: dict, db: Session = Depends(get_db)):
     prompt = data.get("prompt", "").lower()
     email = data.get("email", "")
     categories = {
-        "hosting": ["hosting", "domain", "server", "aws", "azure", "bluehost", "hostinger"],
-        "vpn": ["vpn", "privacy", "expressvpn", "nordvpn", "surfshark"],
-        "saas": ["crm", "software", "automation", "tool", "salesforce", "hubspot"],
-        "finance": ["credit card", "loan", "insurance", "bank", "trading"]
+        "hosting": ["hosting", "domain", "server", "aws", "azure", "bluehost", "hostinger", "website"],
+        "vpn": ["vpn", "privacy", "expressvpn", "nordvpn", "surfshark", "proxy"],
+        "saas": ["crm", "software", "automation", "tool", "salesforce", "hubspot", "productivity"],
+        "finance": ["credit card", "loan", "insurance", "bank", "trading", "investment", "stocks"],
+        "electronics": ["laptop", "pc", "macbook", "iphone", "gpu", "monitor", "keyboard", "headphones", "gadget"],
+        "travel": ["flight", "hotel", "booking", "airbnb", "vacation", "trip", "resort", "rental car"],
+        "education": ["course", "certification", "udemy", "coursera", "learning", "degree", "bootcamp"],
+        "health": ["supplements", "vitamins", "gym", "fitness", "workout", "health insurance"]
     }
     
     found_cat = "general"
