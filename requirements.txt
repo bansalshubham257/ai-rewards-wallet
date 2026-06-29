@@ -4,3 +4,4 @@ sqlalchemy
 psycopg2-binary
 pydantic
 python-multipart
+openai>=1.0.0
