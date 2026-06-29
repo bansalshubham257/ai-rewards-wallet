@@ -9,8 +9,66 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
         return true; 
     }
+
+    if (request.type === "TRANSFER_CONVERSATION") {
+        handleTransfer(request.data).then(result => {
+            sendResponse({ status: "processed", result: result });
+        });
+        return true;
+    }
+
     sendResponse({ status: "ignored" });
 });
+
+async function handleTransfer(data) {
+    const { messages, target_ai } = data;
+    console.log(`[Transfer Background] Transferring ${messages.length} messages to ${target_ai}...`);
+
+    try {
+        const response = await fetch(`${API_BASE}/conversation-transfer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                messages: messages,
+                target_ai: target_ai
+            })
+        });
+
+        if (!response.ok) {
+            console.error(`[Transfer Background] API Error: ${response.status}`);
+            return `api_error_${response.status}`;
+        }
+
+        const result = await response.json();
+        console.log(`[Transfer Background] API Result:`, result);
+
+        // Open the target AI website
+        const urls = {
+            'chatgpt': 'https://chatgpt.com',
+            'claude': 'https://claude.ai',
+            'gemini': 'https://gemini.google.com',
+            'perplexity': 'https://perplexity.ai'
+        };
+
+        const targetUrl = urls[target_ai] || 'https://chatgpt.com';
+        
+        // We copy the generated prompt to the clipboard for the user to paste
+        // Note: chrome.executeScript is used to write to clipboard in the new tab
+        chrome.tabs.create({ url: targetUrl }, (tab) => {
+            // We can't directly write to clipboard in the new tab without content script
+            // So we send the summary to the user via a notification or just copy it here
+            navigator.clipboard.writeText(result.prompt).catch(err => {
+                console.error("Clipboard error:", err);
+            });
+            console.log(`[Transfer Background] Context prompt copied to clipboard!`);
+        });
+
+        return "success";
+    } catch (e) {
+        console.error("[Transfer Background] Network Error:", e);
+        return "network_error";
+    }
+}
 
 async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
     for (let i = 0; i < retries; i++) {
@@ -56,12 +114,23 @@ async function handlePrompt(data) {
         console.log(`[Rewards Background] API Result:`, result);
 
         if (result.offer_id) {
+            // 1. Still show the system notification as a backup
             chrome.notifications.create({
                 type: 'basic',
                 iconUrl: 'https://cdn-icons-png.flaticon.com/512/2530/2530001.png',
                 title: '💰 Reward Opportunity!',
                 message: `We found a great offer for ${result.category}! Click to earn.`,
                 priority: 2
+            });
+
+            // 2. Send message to the content script to show the UI banner
+            chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+                if (tabs[0]) {
+                    chrome.tabs.sendMessage(tabs[0].id, {
+                        type: "SHOW_OFFER_BANNER",
+                        data: result
+                    });
+                }
             });
             return "offer_found";
         }

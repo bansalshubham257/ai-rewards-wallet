@@ -8,7 +8,6 @@ function isCommercial(text) {
 }
 
 function showOfferBanner(offer) {
-    // Remove existing banner if any
     const existingBanner = document.getElementById('ai-rewards-banner');
     if (existingBanner) existingBanner.remove();
 
@@ -41,7 +40,6 @@ function showOfferBanner(offer) {
         <span style="background: white; color: #f57c00; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-left: 10px;">Claim Now</span>
     `;
 
-    // Add animation style
     const style = document.createElement('style');
     style.innerHTML = `
         @keyframes slideDown {
@@ -56,7 +54,6 @@ function showOfferBanner(offer) {
         banner.remove();
     };
 
-    // Auto-remove after 10 seconds
     setTimeout(() => {
         if (banner.parentNode) {
             banner.style.opacity = '0';
@@ -66,6 +63,129 @@ function showOfferBanner(offer) {
 
     document.body.appendChild(banner);
 }
+
+// --- CONTEXT TRANSFER LOGIC ---
+
+const PLATFORM_CONFIG = {
+    'chatgpt.com': {
+        userMsg: '[data-testid="user-message"]',
+        aiMsg: '[data-testid="assistant-message"]',
+        container: 'main'
+    },
+    'claude.ai': {
+        userMsg: 'div[class*="user"]',
+        aiMsg: 'div[class*="assistant"]',
+        container: '.flex-1.overflow-y-auto'
+    },
+    'gemini.google.com': {
+        userMsg: 'div[role="listitem"] .user-message', 
+        aiMsg: 'div[role="listitem"] .model-response',
+        container: '.chat-history'
+    },
+    'perplexity.ai': {
+        userMsg: 'div[class*="user"]',
+        aiMsg: 'div[class*="assistant"]',
+        container: 'main'
+    }
+};
+
+function extractConversation() {
+    const hostname = window.location.hostname.replace('www.', '');
+    const config = PLATFORM_CONFIG[hostname];
+    
+    if (!config) {
+        console.warn(`[Transfer] Platform ${hostname} not supported for extraction.`);
+        return null;
+    }
+
+    const messages = [];
+    const allMsgs = Array.from(document.querySelectorAll(`${config.userMsg}, ${config.aiMsg}`));
+    
+    allMsgs.forEach(el => {
+        const isUser = el.matches(config.userMsg);
+        messages.push({
+            role: isUser ? 'user' : 'assistant',
+            text: el.innerText || el.textContent
+        });
+    });
+
+    console.log(`[Transfer] Extracted ${messages.length} messages.`);
+    return messages;
+}
+
+function injectTransferUI() {
+    if (document.getElementById('ai-transfer-menu')) return;
+
+    const menu = document.createElement('div');
+    menu.id = 'ai-transfer-menu';
+    menu.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #202123;
+        color: white;
+        border: 1px solid #444;
+        border-radius: 12px;
+        padding: 10px;
+        z-index: 99999;
+        font-family: sans-serif;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 200px;
+    `;
+
+    const title = document.createElement('div');
+    title.innerText = "Continue in another AI";
+    title.style.cssText = "font-size: 12px; color: #aaa; text-align: center; margin-bottom: 5px; font-weight: bold;";
+    menu.appendChild(title);
+
+    const platforms = [
+        { name: 'ChatGPT', id: 'chatgpt' },
+        { name: 'Claude', id: 'claude' },
+        { name: 'Gemini', id: 'gemini' },
+        { name: 'Perplexity', id: 'perplexity' }
+    ];
+
+    platforms.forEach(p => {
+        const btn = document.createElement('button');
+        btn.innerText = `Transfer to ${p.name}`;
+        btn.style.cssText = `
+            background: #343541;
+            color: white;
+            border: 1px solid #565869;
+            padding: 6px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            text-align: left;
+        `;
+        btn.onclick = () => {
+            const history = extractConversation();
+            if (history && history.length > 0) {
+                chrome.runtime.sendMessage({
+                    type: "TRANSFER_CONVERSATION",
+                    data: {
+                        messages: history,
+                        target_ai: p.id
+                    }
+                }, (resp) => {
+                    console.log("[Transfer] Background response:", resp);
+                });
+            } else {
+                alert("No conversation found to transfer!");
+            }
+        };
+        menu.appendChild(btn);
+    });
+
+    document.body.appendChild(menu);
+}
+
+const observer = new MutationObserver(() => injectTransferUI());
+observer.observe(document.body, { childList: true, subtree: true });
+injectTransferUI();
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "SHOW_OFFER_BANNER") {
@@ -105,7 +225,7 @@ async function capturePrompt() {
         if (isCommercial(trimmedPrompt)) {
             const { user } = await chrome.storage.local.get("user");
             if (!user) {
-                console.log(`[Rewards] Skipping: User not logged in. Please login via the extension popup.`);
+                console.log(`[Rewards] Skipping: User not logged in.`);
                 return;
             }
 
@@ -119,7 +239,7 @@ async function capturePrompt() {
             }, (response) => {
                 if (chrome.runtime.lastError) {
                     if (chrome.runtime.lastError.message.includes("context invalidated")) {
-                        console.warn(`[Rewards] Extension updated. Please refresh the page to continue earning rewards.`);
+                        console.warn(`[Rewards] Extension updated. Please refresh the page.`);
                     } else {
                         console.error(`[Rewards] Error sending message: ${chrome.runtime.lastError.message}`);
                     }
@@ -130,7 +250,7 @@ async function capturePrompt() {
         }
     } catch (e) {
         if (e && e.message && e.message.includes("context invalidated")) {
-            console.warn(`[Rewards] Extension updated. Please refresh the page to continue earning rewards.`);
+            console.warn(`[Rewards] Extension updated. Please refresh the page.`);
         } else {
             console.error(`[Rewards] Unexpected error in capturePrompt:`, e);
         }
