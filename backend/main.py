@@ -8,12 +8,13 @@ from pydantic import BaseModel
 from passlib.context import CryptContext
 import os
 import shutil
+import json
+from openai import OpenAI
 
 # Password hashing setup
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def get_password_hash(password):
-    # bcrypt has a maximum password length of 72 bytes
     return pwd_context.hash(password[:72])
 
 def verify_password(plain_password, hashed_password):
@@ -27,23 +28,19 @@ SCHEMA_NAME = "ai_rewards_wallet"
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# OpenAI setup
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 # Initialize Schema and Tables safely
 def init_db():
-    # Use engine.begin() to ensure transaction is committed
     with engine.begin() as conn:
         conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA_NAME}"))
-        
-        # Try to add the column. If the table doesn't exist yet, it will fail, 
-        # but create_all() will handle table creation with the correct schema.
         try:
             conn.execute(text(f"ALTER TABLE {SCHEMA_NAME}.users ADD COLUMN password_hash VARCHAR"))
         except Exception:
-            # Either column already exists or table doesn't exist yet
             pass
-            
     Base.metadata.create_all(bind=engine)
 
-    # Seed sample offers if the table is empty
     db = SessionLocal()
     try:
         if db.query(Offer).count() == 0:
@@ -55,11 +52,10 @@ def init_db():
                 Offer(category="electronics", affiliate_name="Amazon", base_url="https://amazon.com", commission_rate=5.0),
                 Offer(category="travel", affiliate_name="Booking", base_url="https://booking.com", commission_rate=10.0),
                 Offer(category="education", affiliate_name="Udemy", base_url="https://udemy.com", commission_rate=15.0),
-                Offer(category="health", affiliate_name="MyProtein", base_url="https://myprotein.com", commission_rate=20.0),
+                Offer(category="health", affiliate_name="MyProtein", commission_rate=20.0),
             ]
             db.add_all(sample_offers)
             db.commit()
-            print("Successfully seeded sample offers.")
     finally:
         db.close()
 
@@ -67,7 +63,6 @@ init_db()
 
 app = FastAPI()
 
-# Global error handler for debugging
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
@@ -75,7 +70,6 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"message": "Internal Server Error", "details": str(exc)},
     )
 
-# Add CORS middleware to allow requests from the browser extension
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -103,55 +97,54 @@ class TransferResponse(BaseModel):
     prompt: str
 
 def generate_transfer_prompt(messages, target_ai):
-    if not messages:
-        return "No context available."
+    try:
+        chat_history = "\n".join([f"{m['role']}: {m['text']}" for m in messages])
+        
+        system_prompt = (
+            "You are an expert AI Context Transfer agent. Your goal is to summarize a conversation "
+            "so it can be continued seamlessly in another AI platform. "
+            "Extract: \n"
+            "1. Conversation Goal: The main objective of the user.\n"
+            "2. Important Context: Technical stack, constraints, decisions made.\n"
+            "3. Current Problem: The specific issue currently being discussed.\n"
+            "4. Next Steps: What the next AI should do immediately.\n\n"
+            "Format the output exactly as a JSON object with keys: summary, current_problem, next_steps, prompt."
+        )
+        
+        user_prompt = f"Here is the conversation history:\n\n{chat_history}\n\nTarget AI: {target_ai}. Please generate the structured handoff."
 
-    # 1. Extract Goal (First User Message)
-    goal = "Not specified"
-    for m in messages:
-        if m['role'] == 'user':
-            goal = m['text']
-            break
-
-    # 2. Extract Current Problem (Last User Message)
-    current_problem = "Not specified"
-    for m in reversed(messages):
-        if m['role'] == 'user':
-            current_problem = m['text']
-            break
-
-    # 3. Extract Technical Context (Simple Keyword extraction for now)
-    tech_keywords = ['fastapi', 'postgresql', 'react', 'python', 'javascript', 'typescript', 'docker', 'kubernetes', 'aws', 'azure', 'render', 'jwt', 'sqlalchemy', 'prisma']
-    found_tech = []
-    all_text = " ".join([m['text'].lower() for m in messages])
-    for kw in tech_keywords:
-        if kw in all_text:
-            found_tech.append(kw)
-
-    context_str = ", ".join(found_tech) if found_tech else "General AI assistance"
-
-    # 4. Format Summary
-    summary = f"Goal: {goal[:100]}... | Tech Stack: {context_str}"
-    next_steps = "Continue the conversation and solve the current problem."
-
-    # 5. Target Adaptation
-    adaptations = {
-        "chatgpt": "Please continue this conversation. I am migrating from another AI. Here is the summary:\n",
-        "claude": "I am transferring a detailed technical session from another AI. Please analyze the following context and continue assisting me:\n",
-        "gemini": "Context Transfer: \n",
-        "perplexity": "I need you to research and continue this session. Context:\n"
-    }
-    
-    prefix = adaptations.get(target_ai, "Continue this conversation:\n")
-    
-    full_prompt = f"{prefix}\n\nConversation Goal:\n{goal}\n\nImportant Context:\n{context_str}\n\nCurrent Problem:\n{current_problem}\n\nInstructions:\nContinue helping from this point."
-
-    return {
-        "summary": summary,
-        "current_problem": current_problem,
-        "next_steps": next_steps,
-        "prompt": full_prompt
-    }
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            response_format={"type": "json_object"}
+        )
+        
+        return json.loads(response.choices[0].message.content)
+        
+    except Exception as e:
+        print(f"LLM Error: {e}. Falling back to basic logic.")
+        goal = messages[0]['text'] if messages else "Not specified"
+        current_problem = messages[-1]['text'] if messages else "Not specified"
+        tech_keywords = ['fastapi', 'postgresql', 'react', 'python', 'javascript', 'typescript', 'docker', 'kubernetes', 'aws', 'azure', 'render', 'jwt', 'sqlalchemy', 'prisma']
+        found_tech = [kw for kw in tech_keywords if any(kw in m['text'].lower() for m in messages)]
+        context_str = ", ".join(found_tech) if found_tech else "General AI assistance"
+        adaptations = {
+            "chatgpt": "Continue this conversation:\n",
+            "claude": "I am transferring a session. Please analyze this context:\n",
+            "gemini": "Context Transfer:\n",
+            "perplexity": "Research and continue this session:\n"
+        }
+        prefix = adaptations.get(target_ai, "Continue this conversation:\n")
+        
+        return {
+            "summary": f"Goal: {goal[:100]}... | Tech: {context_str}",
+            "current_problem": current_problem,
+            "next_steps": "Continue from the last message.",
+            "prompt": f"{prefix}\n\nGoal: {goal}\n\nContext: {context_str}\n\nCurrent Problem: {current_problem}"
+        }
 
 def get_db():
     db = SessionLocal()
@@ -164,20 +157,16 @@ def get_db():
 async def login(data: LoginSchema, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email).first()
     if not user:
-        # Sign up new user
         hashed_password = get_password_hash(data.password)
         user = User(email=data.email, password_hash=hashed_password)
         db.add(user)
         db.commit()
-        # Create corresponding wallet
         wallet = Wallet(email=data.email, current_balance=0.0)
         db.add(wallet)
         db.commit()
     else:
-        # Verify password for existing user
         if not verify_password(data.password, user.password_hash):
             raise HTTPException(status_code=400, detail="Incorrect password")
-            
     return {"status": "success", "email": user.email}
 
 @app.post("/analyze/intent")
@@ -194,32 +183,18 @@ async def analyze_intent(data: dict, db: Session = Depends(get_db)):
         "education": ["course", "certification", "udemy", "coursera", "learning", "degree", "bootcamp"],
         "health": ["supplements", "vitamins", "gym", "fitness", "workout", "health insurance"]
     }
-    
     found_cat = "general"
     for cat, keywords in categories.items():
         if any(k in prompt for k in keywords):
             found_cat = cat
             break
-    
     if found_cat == "general":
         return {"category": "none", "offer_id": None}
-        
-    # Fetch the best active offer for this category from DB
     offer = db.query(Offer).filter(Offer.category == found_cat, Offer.is_active == True).first()
-    
     if offer:
-        # Append the user email as subid for tracking
-        # Example: https://link.com/?aff=123&subid=user@email.com
         separator = "&" if "?" in offer.base_url else "?"
         tracking_link = f"{offer.base_url}{separator}subid={email}"
-        
-        return {
-            "category": found_cat,
-            "offer_id": offer.offer_id,
-            "url": tracking_link,
-            "recommendation": f"Top rated {found_cat} offer for you!"
-        }
-    
+        return {"category": found_cat, "offer_id": offer.offer_id, "url": tracking_link, "recommendation": f"Top rated {found_cat} offer for you!"}
     return {"category": found_cat, "offer_id": None, "message": "No current offers for this category."}
 
 @app.get("/wallet/balance")
@@ -238,13 +213,9 @@ async def update_upi(email: str, upi: str, db: Session = Depends(get_db)):
 
 @app.post("/conversation-transfer", response_model=TransferResponse)
 async def conversation_transfer(data: TransferRequest):
-    # Extract messages from request
     messages = [m.dict() for m in data.messages]
     target_ai = data.target_ai
-    
-    # Generate the structured handoff
     result = generate_transfer_prompt(messages, target_ai)
-    
     return result
 
 if __name__ == "__main__":
