@@ -68,7 +68,7 @@ function showOfferBanner(offer) {
 
 const PLATFORM_CONFIG = {
     'chatgpt.com': {
-        userMsg: '[data-testid="user-message"]',
+        userMsg: '[data-testid="user-message"], div[data-//]', // ChatGPT often changes these
         aiMsg: '[data-testid="assistant-message"]',
         container: 'main'
     },
@@ -78,8 +78,8 @@ const PLATFORM_CONFIG = {
         container: '.flex-1.overflow-y-auto'
     },
     'gemini.google.com': {
-        userMsg: 'div[role="listitem"] .user-message', 
-        aiMsg: 'div[role="listitem"] .model-response',
+        userMsg: 'div[role="listitem"]', // Gemini messages are usually siblings in listitems
+        aiMsg: 'div[role="listitem"]',
         container: '.chat-history'
     },
     'perplexity.ai': {
@@ -91,6 +91,8 @@ const PLATFORM_CONFIG = {
 
 function extractConversation() {
     const hostname = window.location.hostname.replace('www.', '');
+    console.log(`[Transfer] Detecting platform for hostname: ${hostname}`);
+    
     const config = PLATFORM_CONFIG[hostname];
     
     if (!config) {
@@ -98,18 +100,24 @@ function extractConversation() {
         return null;
     }
 
+    console.log(`[Transfer] Using config:`, config);
+
     const messages = [];
     const allMsgs = Array.from(document.querySelectorAll(`${config.userMsg}, ${config.aiMsg}`));
+    console.log(`[Transfer] Found ${allMsgs.length} total message elements.`);
     
-    allMsgs.forEach(el => {
+    allMsgs.forEach((el, index) => {
         const isUser = el.matches(config.userMsg);
-        messages.push({
-            role: isUser ? 'user' : 'assistant',
-            text: el.innerText || el.textContent
-        });
+        const text = el.innerText || el.textContent;
+        if (text && text.trim().length > 0) {
+            messages.push({
+                role: isUser ? 'user' : 'assistant',
+                text: text.trim()
+            });
+        }
     });
 
-    console.log(`[Transfer] Extracted ${messages.length} messages.`);
+    console.log(`[Transfer] Successfully extracted ${messages.length} messages.`);
     return messages;
 }
 
