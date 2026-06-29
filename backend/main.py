@@ -88,6 +88,71 @@ class LoginSchema(BaseModel):
     email: str
     password: str
 
+class MessageSchema(BaseModel):
+    role: str
+    text: str
+
+class TransferRequest(BaseModel):
+    messages: list[MessageSchema]
+    target_ai: str
+
+class TransferResponse(BaseModel):
+    summary: str
+    current_problem: str
+    next_steps: str
+    prompt: str
+
+def generate_transfer_prompt(messages, target_ai):
+    if not messages:
+        return "No context available."
+
+    # 1. Extract Goal (First User Message)
+    goal = "Not specified"
+    for m in messages:
+        if m['role'] == 'user':
+            goal = m['text']
+            break
+
+    # 2. Extract Current Problem (Last User Message)
+    current_problem = "Not specified"
+    for m in reversed(messages):
+        if m['role'] == 'user':
+            current_problem = m['text']
+            break
+
+    # 3. Extract Technical Context (Simple Keyword extraction for now)
+    tech_keywords = ['fastapi', 'postgresql', 'react', 'python', 'javascript', 'typescript', 'docker', 'kubernetes', 'aws', 'azure', 'render', 'jwt', 'sqlalchemy', 'prisma']
+    found_tech = []
+    all_text = " ".join([m['text'].lower() for m in messages])
+    for kw in tech_keywords:
+        if kw in all_text:
+            found_tech.append(kw)
+
+    context_str = ", ".join(found_tech) if found_tech else "General AI assistance"
+
+    # 4. Format Summary
+    summary = f"Goal: {goal[:100]}... | Tech Stack: {context_str}"
+    next_steps = "Continue the conversation and solve the current problem."
+
+    # 5. Target Adaptation
+    adaptations = {
+        "chatgpt": "Please continue this conversation. I am migrating from another AI. Here is the summary:\n",
+        "claude": "I am transferring a detailed technical session from another AI. Please analyze the following context and continue assisting me:\n",
+        "gemini": "Context Transfer: \n",
+        "perplexity": "I need you to research and continue this session. Context:\n"
+    }
+    
+    prefix = adaptations.get(target_ai, "Continue this conversation:\n")
+    
+    full_prompt = f"{prefix}\n\nConversation Goal:\n{goal}\n\nImportant Context:\n{context_str}\n\nCurrent Problem:\n{current_problem}\n\nInstructions:\nContinue helping from this point."
+
+    return {
+        "summary": summary,
+        "current_problem": current_problem,
+        "next_steps": next_steps,
+        "prompt": full_prompt
+    }
+
 def get_db():
     db = SessionLocal()
     try:
@@ -170,6 +235,17 @@ async def update_upi(email: str, upi: str, db: Session = Depends(get_db)):
     user.upi_id = upi
     db.commit()
     return {"status": "success", "message": "UPI ID updated successfully"}
+
+@app.post("/conversation-transfer", response_model=TransferResponse)
+async def conversation_transfer(data: TransferRequest):
+    # Extract messages from request
+    messages = [m.dict() for m in data.messages]
+    target_ai = data.target_ai
+    
+    # Generate the structured handoff
+    result = generate_transfer_prompt(messages, target_ai)
+    
+    return result
 
 if __name__ == "__main__":
     import uvicorn
