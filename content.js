@@ -224,8 +224,21 @@ function injectTransferUI() {
                         messages: history,
                         target_ai: p.id
                     }
-                }, (resp) => {
+                }, async (resp) => {
                     console.log("[Transfer] Background response:", resp);
+                    if (resp && resp.success) {
+                        // 1. Copy the prompt to clipboard
+                        try {
+                            await navigator.clipboard.writeText(resp.prompt);
+                            console.log("[Transfer] Prompt copied to clipboard!");
+                        } catch (err) {
+                            console.error("[Transfer] Clipboard copy failed:", err);
+                        }
+                        // 2. Open the target AI site
+                        window.open(resp.url, '_blank');
+                    } else {
+                        alert("Transfer failed. Please check logs.");
+                    }
                 });
             } else {
                 alert("No conversation found to transfer!");

@@ -42,7 +42,6 @@ async function handleTransfer(data) {
         const result = await response.json();
         console.log(`[Transfer Background] API Result:`, result);
 
-        // Open the target AI website
         const urls = {
             'chatgpt': 'https://chatgpt.com',
             'claude': 'https://claude.ai',
@@ -52,18 +51,13 @@ async function handleTransfer(data) {
 
         const targetUrl = urls[target_ai] || 'https://chatgpt.com';
         
-        // We copy the generated prompt to the clipboard for the user to paste
-        // Note: chrome.executeScript is used to write to clipboard in the new tab
-        chrome.tabs.create({ url: targetUrl }, (tab) => {
-            // We can't directly write to clipboard in the new tab without content script
-            // So we send the summary to the user via a notification or just copy it here
-            navigator.clipboard.writeText(result.prompt).catch(err => {
-                console.error("Clipboard error:", err);
-            });
-            console.log(`[Transfer Background] Context prompt copied to clipboard!`);
-        });
-
-        return "success";
+        // Instead of copying here, we send the prompt back to the content script
+        // so it can copy it from a document context.
+        return {
+            success: true,
+            prompt: result.prompt,
+            url: targetUrl
+        };
     } catch (e) {
         console.error("[Transfer Background] Network Error:", e);
         return "network_error";
