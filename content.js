@@ -68,7 +68,7 @@ function showOfferBanner(offer) {
 
 const PLATFORM_CONFIG = {
     'chatgpt.com': {
-        userMsg: '[data-testid="user-message"], div[data-//]', // ChatGPT often changes these
+        userMsg: '[data-testid="user-message"]',
         aiMsg: '[data-testid="assistant-message"]',
         container: 'main'
     },
@@ -78,9 +78,9 @@ const PLATFORM_CONFIG = {
         container: '.flex-1.overflow-y-auto'
     },
     'gemini.google.com': {
-        userMsg: 'div[role="listitem"]', // Gemini messages are usually siblings in listitems
-        aiMsg: 'div[role="listitem"]',
-        container: '.chat-history'
+        userMsg: '.user-query, [data-test-id="user-message"]', 
+        aiMsg: '.model-response, [data-test-id="assistant-message"]',
+        container: 'main'
     },
     'perplexity.ai': {
         userMsg: 'div[class*="user"]',
@@ -103,19 +103,32 @@ function extractConversation() {
     console.log(`[Transfer] Using config:`, config);
 
     const messages = [];
-    const allMsgs = Array.from(document.querySelectorAll(`${config.userMsg}, ${config.aiMsg}`));
-    console.log(`[Transfer] Found ${allMsgs.length} total message elements.`);
     
-    allMsgs.forEach((el, index) => {
-        const isUser = el.matches(config.userMsg);
-        const text = el.innerText || el.textContent;
-        if (text && text.trim().length > 0) {
-            messages.push({
-                role: isUser ? 'user' : 'assistant',
-                text: text.trim()
-            });
-        }
-    });
+    if (hostname === 'gemini.google.com') {
+        const items = document.querySelectorAll('div[role="listitem"]');
+        items.forEach(item => {
+            const isUser = item.querySelector('.user-query') || item.innerText.includes('You');
+            const text = item.innerText || item.textContent;
+            if (text && text.trim().length > 0) {
+                messages.push({
+                    role: isUser ? 'user' : 'assistant',
+                    text: text.trim()
+                });
+            }
+        });
+    } else {
+        const allMsgs = Array.from(document.querySelectorAll(`${config.userMsg}, ${config.aiMsg}`));
+        allMsgs.forEach(el => {
+            const isUser = el.matches(config.userMsg);
+            const text = el.innerText || el.textContent;
+            if (text && text.trim().length > 0) {
+                messages.push({
+                    role: isUser ? 'user' : 'assistant',
+                    text: text.trim()
+                });
+            }
+        });
+    }
 
     console.log(`[Transfer] Successfully extracted ${messages.length} messages.`);
     return messages;
@@ -245,7 +258,7 @@ async function capturePrompt() {
                     url: window.location.hostname
                 }
             }, (response) => {
-                if (chrome.runtime.lastError) {
+                if (chrome.//runtime.lastError) {
                     if (chrome.runtime.lastError.message.includes("context invalidated")) {
                         console.warn(`[Rewards] Extension updated. Please refresh the page.`);
                     } else {
