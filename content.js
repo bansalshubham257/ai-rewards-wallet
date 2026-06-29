@@ -135,8 +135,10 @@ function extractConversation() {
 }
 
 function injectTransferUI() {
+    if (!document.body) return;
     if (document.getElementById('ai-transfer-menu')) return;
 
+    console.log(`[Transfer] Injecting UI menu...`);
     const menu = document.createElement('div');
     menu.id = 'ai-transfer-menu';
     menu.style.cssText = `
@@ -148,7 +150,7 @@ function injectTransferUI() {
         border: 1px solid #444;
         border-radius: 12px;
         padding: 10px;
-        z-index: 99999;
+        z-index: 2147483647;
         font-family: sans-serif;
         box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         display: flex;
@@ -204,9 +206,20 @@ function injectTransferUI() {
     document.body.appendChild(menu);
 }
 
-const observer = new MutationObserver(() => injectTransferUI());
-observer.observe(document.body, { childList: true, subtree: true });
-injectTransferUI();
+function initTransfer() {
+    if (!document.body) {
+        console.log(`[Transfer] Body not ready, retrying...`);
+        setTimeout(initTransfer, 500);
+        return;
+    }
+    
+    console.log(`[Transfer] Initializing UI...`);
+    injectTransferUI();
+    const observer = new MutationObserver(() => injectTransferUI());
+    observer.observe(document.body, { childList: true, subtree: true });
+}
+
+initTransfer();
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "SHOW_OFFER_BANNER") {
@@ -258,7 +271,7 @@ async function capturePrompt() {
                     url: window.location.hostname
                 }
             }, (response) => {
-                if (chrome.//runtime.lastError) {
+                if (chrome.runtime.lastError) {
                     if (chrome.runtime.lastError.message.includes("context invalidated")) {
                         console.warn(`[Rewards] Extension updated. Please refresh the page.`);
                     } else {
