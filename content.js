@@ -1,3 +1,8 @@
+/** 
+ * AI Rewards Wallet - Content Script 
+ * Version: 1.1
+ */
+
 const COMMERCIAL_KEYWORDS = ['best', 'buy', 'price', 'recommend', 'hosting', 'vpn', 'crm', 'saas', 'laptop', 'insurance', 'course', 'credit card', 'software', 'cheap', 'top', 'deal', 'discount'];
 
 function isCommercial(text) {
@@ -22,7 +27,7 @@ function showOfferBanner(offer) {
         color: white;
         padding: 12px 24px;
         border-radius: 50px;
-        z-index: 999999;
+        z-index: 2147483647;
         font-family: sans-serif;
         font-weight: bold;
         box-shadow: 0 4px 15px rgba(0,0,0,0.3);
