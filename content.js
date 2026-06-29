@@ -226,16 +226,15 @@ function injectTransferUI() {
                     }
                 }, async (resp) => {
                     console.log("[Transfer] Background response:", resp);
-                    if (resp && resp.success) {
-                        // 1. Copy the prompt to clipboard
+                    if (resp && resp.status === "processed" && resp.result && resp.result.success) {
+                        const result = resp.result;
                         try {
-                            await navigator.clipboard.writeText(resp.prompt);
+                            await navigator.clipboard.writeText(result.prompt);
                             console.log("[Transfer] Prompt copied to clipboard!");
                         } catch (err) {
                             console.error("[Transfer] Clipboard copy failed:", err);
                         }
-                        // 2. Open the target AI site
-                        window.open(resp.url, '_blank');
+                        window.open(result.url, '_blank');
                     } else {
                         alert("Transfer failed. Please check logs.");
                     }
