@@ -122,9 +122,25 @@ function extractConversation() {
             }
         });
     } else {
-        const allMsgs = Array.from(document.querySelectorAll(`${config.userMsg}, ${config.aiMsg}`));
-        allMsgs.forEach(el => {
-            const isUser = el.matches(config.userMsg);
+        // Heuristic approach: Find all elements that look like messages
+        const allElements = Array.from(document.querySelectorAll('div, section, article'));
+        
+        // Filter for elements that have a role of message or match our config
+        const chatBlocks = allElements.filter(el => {
+            return el.matches(config.userMsg) || 
+                   el.matches(config.aiMsg) || 
+                   (el.innerText && el.innerText.length < 5000 && el.children.length === 0 && el.innerText.trim().length > 0);
+        });
+
+        // If heuristic fails, use the explicit config selectors
+        const targets = chatBlocks.length > 0 ? chatBlocks : Array.from(document.querySelectorAll(`${config.userMsg}, ${config.aiMsg}`));
+
+        targets.forEach(el => {
+            // Logic to determine role: User messages usually have different styles/ids
+            const isUser = el.matches(config.userMsg) || 
+                           el.classList.contains('user') || 
+                           el.getAttribute('data-testid')?.includes('user');
+            
             const text = el.innerText || el.textContent;
             if (text && text.trim().length > 0) {
                 messages.push({
@@ -135,8 +151,18 @@ function extractConversation() {
         });
     }
 
-    console.log(`[Transfer] Successfully extracted ${messages.length} messages.`);
-    return messages;
+    // Deduplicate consecutive messages from the same role
+    const deduplicated = [];
+    messages.forEach(msg => {
+        if (deduplicated.length > 0 && deduplicated[deduplicated.length - 1].role === msg.role) {
+            deduplicated[deduplicated.length - 1].text += `\n\n${msg.text}`;
+        } else {
+            deduplicated.push(msg);
+        }
+    });
+
+    console.log(`[Transfer] Successfully extracted ${deduplicated.length} messages.`);
+    return deduplicated;
 }
 
 function injectTransferUI() {
