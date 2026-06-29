@@ -108,9 +108,10 @@ function extractConversation() {
     console.log(`[Transfer] Using config:`, config);
 
     const messages = [];
+    const container = document.querySelector(config.container) || document.body;
     
     if (hostname === 'gemini.google.com') {
-        const items = document.querySelectorAll('div[role="listitem"]');
+        const items = container.querySelectorAll('div[role="listitem"]');
         items.forEach(item => {
             const isUser = item.querySelector('.user-query') || item.innerText.includes('You');
             const text = item.innerText || item.textContent;
@@ -122,21 +123,10 @@ function extractConversation() {
             }
         });
     } else {
-        // Heuristic approach: Find all elements that look like messages
-        const allElements = Array.from(document.querySelectorAll('div, section, article'));
-        
-        // Filter for elements that have a role of message or match our config
-        const chatBlocks = allElements.filter(el => {
-            return el.matches(config.userMsg) || 
-                   el.matches(config.aiMsg) || 
-                   (el.innerText && el.innerText.length < 5000 && el.children.length === 0 && el.innerText.trim().length > 0);
-        });
-
-        // If heuristic fails, use the explicit config selectors
-        const targets = chatBlocks.length > 0 ? chatBlocks : Array.from(document.querySelectorAll(`${config.userMsg}, ${config.aiMsg}`));
+        // Only look for elements matching our specific message selectors within the container
+        const targets = Array.from(container.querySelectorAll(`${config.userMsg}, ${config.aiMsg}`));
 
         targets.forEach(el => {
-            // Logic to determine role: User messages usually have different styles/ids
             const isUser = el.matches(config.userMsg) || 
                            el.classList.contains('user') || 
                            el.getAttribute('data-testid')?.includes('user');
