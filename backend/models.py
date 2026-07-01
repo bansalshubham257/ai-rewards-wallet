@@ -33,6 +33,7 @@ class Wallet(Base):
     email = Column(String, ForeignKey(f"{SCHEMA_NAME}.users.email"), primary_key=True)
     current_balance = Column(Float, default=0.0)
     lifetime_earnings = Column(Float, default=0.0)
+    ad_impressions = Column(Integer, default=0)
 
 class Transaction(Base):
     __tablename__ = "transactions"

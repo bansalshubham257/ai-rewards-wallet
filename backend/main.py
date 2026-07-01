@@ -39,6 +39,10 @@ def init_db():
             conn.execute(text(f"ALTER TABLE {SCHEMA_NAME}.users ADD COLUMN password_hash VARCHAR"))
         except Exception:
             pass
+        try:
+            conn.execute(text(f"ALTER TABLE {SCHEMA_NAME}.wallets ADD COLUMN ad_impressions INTEGER DEFAULT 0"))
+        except Exception:
+            pass
     Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()
@@ -210,6 +214,15 @@ async def update_upi(email: str, upi: str, db: Session = Depends(get_db)):
     user.upi_id = upi
     db.commit()
     return {"status": "success", "message": "UPI ID updated successfully"}
+
+@app.post("/track/ad-impression")
+async def track_ad_impression(email: str, db: Session = Depends(get_db)):
+    wallet = db.query(Wallet).filter(Wallet.email == email).first()
+    if not wallet:
+        raise HTTPException(status_code=404, detail="Wallet not found")
+    wallet.ad_impressions = (wallet.ad_impressions or 0) + 1
+    db.commit()
+    return {"status": "success", "ad_impressions": wallet.ad_impressions}
 
 @app.post("/conversation-transfer", response_model=TransferResponse)
 async def conversation_transfer(data: TransferRequest):

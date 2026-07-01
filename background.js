@@ -10,6 +10,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true; 
     }
 
+    if (request.type === "TRACK_AD_IMPRESSION") {
+        trackAdImpression(request.data).then(result => {
+            sendResponse({ status: "processed", result: result });
+        });
+        return true;
+    }
+
     if (request.type === "TRANSFER_CONVERSATION") {
         handleTransfer(request.data).then(result => {
             sendResponse({ status: "processed", result: result });
@@ -19,6 +26,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     sendResponse({ status: "ignored" });
 });
+
+async function trackAdImpression(data) {
+    const { user } = await chrome.storage.local.get("user");
+    if (!user) return "no_user";
+
+    try {
+        const response = await fetchWithRetry(`${API_BASE}/track/ad-impression?email=${encodeURIComponent(user.email)}`, {
+            method: 'POST'
+        });
+        if (!response.ok) return `api_error_${response.status}`;
+        const result = await response.json();
+        return result;
+    } catch (e) {
+        console.error("[Rewards Background] Track Impression Error:", e);
+        return "network_error";
+    }
+}
 
 async function handleTransfer(data) {
     const { messages, target_ai } = data;

@@ -1,72 +1,64 @@
 /** 
  * AI Rewards Wallet - Content Script 
- * Version: 1.1
+ * Version: 1.2 (Impression-based Ads)
  */
 
-const COMMERCIAL_KEYWORDS = ['best', 'buy', 'price', 'recommend', 'hosting', 'vpn', 'crm', 'saas', 'laptop', 'insurance', 'course', 'credit card', 'software', 'cheap', 'top', 'deal', 'discount'];
-
-function isCommercial(text) {
-    const lowerText = text.toLowerCase();
-    const found = COMMERCIAL_KEYWORDS.some(keyword => lowerText.includes(keyword));
-    console.log(`[Rewards] Checking text: "${text.substring(0, 50)}..." - Commercial: ${found}`);
-    return found;
-}
-
-function showOfferBanner(offer) {
-    const existingBanner = document.getElementById('ai-rewards-banner');
+function showVerticalAdBanner() {
+    const existingBanner = document.getElementById('ai-rewards-vertical-ad');
     if (existingBanner) existingBanner.remove();
 
     const banner = document.createElement('div');
-    banner.id = 'ai-rewards-banner';
+    banner.id = 'ai-rewards-vertical-ad';
     banner.style.cssText = `
         position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: linear-gradient(90deg, #ff9800, #f57c00);
-        color: white;
-        padding: 12px 24px;
-        border-radius: 50px;
+        top: 100px;
+        right: 20px;
+        width: 160px;
+        height: 600px;
+        background: #f8f9fa;
+        border: 2px solid #ddd;
+        border-radius: 12px;
         z-index: 2147483647;
-        font-family: sans-serif;
-        font-weight: bold;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         display: flex;
-        align-items: center;
-        gap: 10px;
+        flex-direction: column;
+        overflow: hidden;
         transition: all 0.3s ease;
-        animation: slideDown 0.5s ease-out;
+        animation: slideInRight 0.5s ease-out;
     `;
 
-    banner.innerHTML = `
-        <span>💰</span>
-        <span>${offer.recommendation}</span>
-        <span style="background: white; color: #f57c00; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-left: 10px;">Claim Now</span>
-    `;
+    // Ad Header
+    const header = document.createElement('div');
+    header.style.cssText = "background: #eee; padding: 8px; text-align: center; font-size: 10px; color: #666; font-family: sans-serif; font-weight: bold; border-bottom: 1px solid #ddd;";
+    header.innerText = "SPONSORED";
+    banner.appendChild(header);
+
+    // Ad Content (Iframe for Google Ads / Third Party)
+    // Using an iframe to bypass CSP on AI sites. 
+    // The user should replace 'https://your-ad-server.com/ad' with their own ad-serving page.
+    const adFrame = document.createElement('iframe');
+    adFrame.src = "https://example.com/ad-placeholder"; // PLACEHOLDER: User's ad-serving URL
+    adFrame.style.cssText = "width: 100%; height: 100%; border: none;";
+    banner.appendChild(adFrame);
 
     const style = document.createElement('style');
     style.innerHTML = `
-        @keyframes slideDown {
-            from { transform: translate(-50%, -100px); opacity: 0; }
-            to { transform: translate(-50%, 0); opacity: 1; }
+        @keyframes slideInRight {
+            from { transform: translateX(120%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
     `;
     document.head.appendChild(style);
 
-    banner.onclick = () => {
-        window.open(offer.url, '_blank');
-        banner.remove();
-    };
+    document.body.appendChild(banner);
 
+    // Ad auto-removes after 30 seconds to keep UX clean
     setTimeout(() => {
         if (banner.parentNode) {
             banner.style.opacity = '0';
             setTimeout(() => banner.remove(), 300);
         }
-    }, 10000);
-
-    document.body.appendChild(banner);
+    }, 30000);
 }
 
 // --- CONTEXT TRANSFER LOGIC ---
@@ -255,8 +247,8 @@ function initTransfer() {
 initTransfer();
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.type === "SHOW_OFFER_BANNER") {
-        showOfferBanner(request.data);
+    if (request.type === "SHOW_AD_BANNER") {
+        showVerticalAdBanner();
         sendResponse({ status: "banner_shown" });
     }
 });
@@ -286,41 +278,23 @@ async function capturePrompt() {
             return;
         }
 
-        const trimmedPrompt = promptText.trim();
-        console.log(`[Rewards] Captured prompt: "${trimmedPrompt.substring(0, 50)}..."`);
+        console.log(`[Ads] Prompt captured. Triggering ad and tracking...`);
 
-        if (isCommercial(trimmedPrompt)) {
-            const { user } = await chrome.storage.local.get("user");
-            if (!user) {
-                console.log(`[Rewards] Skipping: User not logged in.`);
-                return;
+        // Track ad impression and show banner
+        chrome.runtime.sendMessage({
+            type: "TRACK_AD_IMPRESSION",
+            data: { url: window.location.hostname }
+        }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.warn(`[Ads] Message error: ${chrome.runtime.lastError.message}`);
+            } else {
+                // Once tracking is sent, show the ad banner
+                showVerticalAdBanner();
             }
+        });
 
-            console.log(`[Rewards] Sending commercial prompt to background script...`);
-            chrome.runtime.sendMessage({
-                type: "PROMPT_CAPTURED",
-                data: {
-                    prompt: trimmedPrompt,
-                    url: window.location.hostname
-                }
-            }, (response) => {
-                if (chrome.runtime.lastError) {
-                    if (chrome.runtime.lastError.message.includes("context invalidated")) {
-                        console.warn(`[Rewards] Extension updated. Please refresh the page.`);
-                    } else {
-                        console.error(`[Rewards] Error sending message: ${chrome.runtime.lastError.message}`);
-                    }
-                } else {
-                    console.log(`[Rewards] Background responded:`, response);
-                }
-            });
-        }
     } catch (e) {
-        if (e && e.message && e.message.includes("context invalidated")) {
-            console.warn(`[Rewards] Extension updated. Please refresh the page.`);
-        } else {
-            console.error(`[Rewards] Unexpected error in capturePrompt:`, e);
-        }
+        console.error(`[Ads] Unexpected error in capturePrompt:`, e);
     }
 }
 
